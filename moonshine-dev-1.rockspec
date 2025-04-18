@@ -11,7 +11,9 @@ description = {
    license = "MIT"
 }
 build = {
-   modules = {},
+   modules = {
+      ["moonshine"]: "moonshine.lua"
+   },
    type = "builtin",
 }
 dependecies = {
