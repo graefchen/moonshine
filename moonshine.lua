@@ -4,18 +4,23 @@ local etlua = require "etlua"
 
 -- utils
 local utils = {}
+
 function utils.is_dir(path)
     return path:sub(-1) == "/" or lfs.attributes(path, "mode") == "directory"
 end
+
 function utils.get_dir(filename)
     return filename:match("^(.+)/.+$")
 end
+
 function utils.get_extension(filename)
     return filename:match(".+%.(%w+)$") or "none"
 end
+
 function utils.get_filename(filename)
     return filename:match("([/%. %w]+)%.%w+$")
 end
+
 function utils.split(input, seperator)
     if seperator == nil then
         seperator = "%s"
@@ -30,17 +35,24 @@ function utils.split(input, seperator)
     end
     return t
 end
+
+-- getting the last object out of the table
 function utils:last_obj(table)
+    if table == nil then
+        return nil
+    end
     return table[#table]
 end
 
 -- misc
+
 local function get_template(file)
     local f = io.open(file, "r")
     local template = f:read("*a")
     f:close()
     return etlua.compile(template)
 end
+
 local function get_djot(file)
     local f = io.open(file, "r")
     local input = f:read("*a")
@@ -48,21 +60,23 @@ local function get_djot(file)
     local doc = djot.parse(input)
     return djot.render_html(doc)
 end
+
 local function get_files(path, exclude)
     local list = {}
     for file in lfs.dir(path) do
         if file ~= "." and file ~= ".." then
-            if path .. file == exclude then
+            local filepath = path .. file
+            if filepath == exclude then
                 goto continue
             end
-            if utils.is_dir(path .. file) then
-                for k, v in pairs(get_files(path .. file .. "/", exclude)) do
-                    table.insert(list, v)
+            if utils.is_dir(filepath) then
+                for _, value in pairs(get_files(filepath .. "/", exclude)) do
+                    table.insert(list, value)
                 end
             else
-                local ex = utils.get_extension(file)
-                if ex == "djot" or ex == "etlua" then
-                    table.insert(list, path .. file)
+                local extension = utils.get_extension(file)
+                if extension == "djot" or extension == "etlua" then
+                    table.insert(list, filepath)
                 end
             end
             ::continue::
@@ -70,50 +84,60 @@ local function get_files(path, exclude)
     end
     return list
 end
+
 local function get_contents(list, basepath)
-    local t = {}
-    for k, v in pairs(list) do
-        local ex = utils.get_extension(v)
-        local name = utils.get_filename(v)
-        if t[name] == nil then
-            t[name] = {}
+    local table = {}
+    for _, value in pairs(list) do
+        local extension = utils.get_extension(value)
+        local name = utils.get_filename(value)
+        if table[name] == nil then
+            table[name] = {}
         end
-        if ex == "djot" then
-            t[name]["content"] = get_djot(v)
-        elseif ex == "etlua" then
-            t[name]["template"] = get_template(v)
+        if extension == "djot" then
+            table[name]["content"] = get_djot(value)
+        elseif extension == "etlua" then
+            table[name]["template"] = get_template(value)
         end
     end
+    -- creating a table that takes in as the key a directory name
+    -- and as its value the etlua template function
     local dir_template = {}
-    for k, v in pairs(t) do
-        if k:match("index") then
-            if t[k]["template"] ~= nil then
-                dir_template[utils.get_dir(k)] = t[k]["template"]
+    -- first looping throught the first table and filling the table
+    for key, _ in pairs(table) do
+        if key:match("index") then
+            -- adding the template to the `dir_template` table
+            if table[key]["template"] ~= nil then
+                dir_template[utils.get_dir(key)] = table[key]["template"]
             end
         end
-        if t[k]["template"] == nil then
-            local bool = false
+    end
+    -- second loop throgh table to add the missing etlua template functions
+    for key, _ in pairs(table) do
+        if table[key]["template"] == nil then
             local str = ""
-            local split = utils.split(k, "/")
-            for k1, v1 in pairs(split) do
-                if bool then
-                    goto continue
-                end
+            -- checking for the template function (also overwriting it when
+            -- found on an upper level in the table)
+            for _, part in pairs(utils.split(key, "/")) do
                 if dir_template[str] ~= nil then
-                    t[k]["template"] = t[dir_template]["template"]
-                    str = str .. "/" .. v1
+                    table[key]["template"] = table[dir_template]["template"]
+                    str = str .. "/" .. part
                 end
             end
-            ::continue::
         end
     end
-    -- last run to prune the ...
-    local ret = {}
-    for k, v in pairs(t) do
-        ret[string.sub(k, string.len(basepath) + 1)] = v
+    -- Last run to prune the full path of the table to the relative path we
+    -- want. For example we got the key: `example/blog/index` and the
+    -- basepath: `example/blog/`, then we get as a return the key `index`
+    -- This makes it easier to create the static site in the 
+    -- `create_site` function, as it now just creates the `index.html` file
+    -- inside its given folder instead of the `example/blog/index.html` file.
+    local return_table = {}
+    for key, value in pairs(table) do
+        return_table[string.sub(key, string.len(basepath) + 1)] = value
     end
-    return ret
+    return return_table
 end
+
 local function write_file(file, value)
     local file = io.open(file, "w")
     local content = value["content"] or ""
@@ -123,25 +147,27 @@ local function write_file(file, value)
     file:write(html)
     file:close()
 end
+
 local function create_site(list, dir)
     lfs.mkdir(dir)
-    for k, v in pairs(list) do
-        local str = dir
-        local sp = utils.split(utils.get_dir(k), "/")
-        for k1, v1 in pairs(sp) do
-            str = str .. v1 .. "/"
-            lfs.mkdir(str)
+    for key, value in pairs(list) do
+        local directory = dir
+        for _, part in pairs(utils.split(utils.get_dir(key), "/")) do
+            directory = directory .. part .. "/"
+            lfs.mkdir(directory)
         end
-        local filename = utils:last_obj(utils.split(k, "/"))
+        local filename = utils:last_obj(utils.split(key, "/"))
         if filename == "index" then
-            write_file(str .. "index.html", v)
+            write_file(directory .. "index.html", value)
         else
-            lfs.mkdir(str .. filename)
-            write_file(str .. filename .. "/index.html", v)
+            lfs.mkdir(directory .. filename)
+            write_file(directory .. filename .. "/index.html", value)
         end
     end
 end
+
 -- TODO: Rewrite that it is not using external commands.
+-- Additionally it can be put into the `moonshine` table
 local function copy_dir(from, to)
     os.execute("cp " .. from .. " " .. to)
 end
@@ -154,13 +180,14 @@ function moonshine.build(config)
         return error("No config given")
     end
     if config.src ~= nil then
-        print("Starting to generate")
+        print("moonshine \u{1F943}")
+        print("🧊 Starting to generate")
         local start_time = os.time()
         local files = get_files(config.src, config.dst)
         local contents = get_contents(files, config.src)
         create_site(contents, config.dst)
         local end_time = os.time()
-        print("Finished generating")
+        print("🧊 Finished generating")
         local elapsed_time = os.difftime(end_time, start_time)
         print("Lua took " .. elapsed_time .. "s to generate the blog")
     else
