@@ -1,3 +1,4 @@
+-- Note: One if the following dependencies lets luajit crash (for me)
 local lfs = require "lfs"
 local djot = require "djot"
 local etlua = require "etlua"
@@ -37,11 +38,20 @@ function utils.split(input, seperator)
 end
 
 -- getting the last object out of the table
-function utils:last_obj(table)
+function utils.last_obj(table)
     if table == nil then
         return nil
     end
     return table[#table]
+end
+
+-- getting the size of a table
+function utils.size(table)
+    local count = 0
+    for _ in pairs(table) do
+        count = count + 1
+    end
+    return count
 end
 
 -- misc
@@ -66,6 +76,7 @@ local function get_files(path, exclude)
     for file in lfs.dir(path) do
         if file ~= "." and file ~= ".." then
             local filepath = path .. file
+            -- skip the loop when filepath is where the site is build
             if filepath == exclude then
                 goto continue
             end
@@ -138,6 +149,9 @@ local function get_contents(list, basepath)
     return return_table
 end
 
+-- writing a file with the filename and the given value
+-- we expect that "value" is a table with a template function "template"
+-- and a html field "content"
 local function write_file(file, value)
     local file = io.open(file, "w")
     local content = value["content"] or ""
@@ -156,13 +170,14 @@ local function create_site(list, dir)
             directory = directory .. part .. "/"
             lfs.mkdir(directory)
         end
-        local filename = utils:last_obj(utils.split(key, "/"))
+        local filename = utils.last_obj(utils.split(key, "/"))
         if filename == "index" then
             write_file(directory .. "index.html", value)
         else
             lfs.mkdir(directory .. filename)
             write_file(directory .. filename .. "/index.html", value)
         end
+        print("🧊 " .. (filename == "index" and "index.html" or (filename .. "/index.html")))
     end
 end
 
@@ -180,16 +195,19 @@ function moonshine.build(config)
         return error("No config given")
     end
     if config.src ~= nil then
-        print("moonshine \u{1F943}")
-        print("🧊 Starting to generate")
+        print("moonshine 🥃")
+        print("Starting to generate")
         local start_time = os.time()
         local files = get_files(config.src, config.dst)
         local contents = get_contents(files, config.src)
+        -- getting the amount of pages we build
+        local size = utils.size(contents)
         create_site(contents, config.dst)
         local end_time = os.time()
-        print("🧊 Finished generating")
-        local elapsed_time = os.difftime(end_time, start_time)
-        print("Lua took " .. elapsed_time .. "s to generate the blog")
+        print("🍨 Finished generating into \"" .. config.dst .. "\"")
+        local elapsed_time = math.floor(os.difftime(end_time, start_time))
+        print("Lua took " .. elapsed_time .. " sec to generate the blog of " .. size .. " file" ..
+                  (size == 1 and "" or "s"))
     else
         return error("No config source given")
     end
