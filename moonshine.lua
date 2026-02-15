@@ -1,4 +1,3 @@
--- Note: One if the following dependencies lets luajit crash (for me)
 local lfs = require "lfs"
 local djot = require "djot"
 local etlua = require "etlua"
@@ -22,7 +21,7 @@ function utils.get_filename(filename)
     return filename:match("([/%. %w]+)%.%w+$")
 end
 
-function utils.split(input, seperator)
+function utils.split(input, seperator) 
     if seperator == nil then
         seperator = "%s"
     end
