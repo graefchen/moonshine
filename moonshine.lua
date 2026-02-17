@@ -1,4 +1,4 @@
--- Note: One if the following dependencies lets luajit crash (for me)
+package.path = package.path .. ";./vendor/?.lua"
 local lfs = require "lfs"
 local djot = require "djot"
 local etlua = require "etlua"
