@@ -1,9 +1,9 @@
-# moonshine 🥃
+moonshine 🥃
+===========
 
-> [!WARNING]
-> I more or less got extremely feed up with Lua and how [Luarocks](https://luarocks.org)
-> works on my Windows Machine, so I am going to rewrite this, albeit small
-> static site builder.
-> I did also try to other ([Lux](https://lux.lumen-labs.org)) package manager
-> for Lua, but as it is also currently still in alpha and does not work
-> like I expected, I am going to ignore it.
+a static site generator written in [Prolog][prolog] using the [Djot][]
+markup languages woth the help of the [djota][] library..
+
+[prolog]: https://en.wikipedia.org/wiki/Prolog
+[Djot]: https://djot.net
+[djota]: https://github.com/aarroyoc/djota/tree/main
