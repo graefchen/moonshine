@@ -11,6 +11,15 @@ before you can run `moonshine.pl`, you need to download [djota][]
 and put it in the same folder as `moonshine.pl`.
 
 
-[Prolog]: https://en.wikipedia.org/wiki/Prolog
-[Djot]: https://djot.net
-[djota]: https://github.com/aarroyoc/djota/tree/main
+  [Prolog]: https://en.wikipedia.org/wiki/Prolog
+  [Djot]: https://djot.net
+  [djota]: https://github.com/aarroyoc/djota
+
+run
+---
+
+```elvish
+$ scryer-prolog moonshine.pl
+```
+
+
