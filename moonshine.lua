@@ -1,9 +1,17 @@
-local lfs = require "lfs"
-local djot = require "djot"
-local etlua = require "etlua"
+-- █▀▄▀█ █▀█ █▀█ █▄░█ █▀ █░█ █ █▄░█ █▀▀
+-- █░▀░█ █▄█ █▄█ █░▀█ ▄█ █▀█ █ █░▀█ ██▄.lua
+--
+-- A Lua static site library that uses the Djot markup language and
+-- the etlua template engine to generate static sites.
+--
+-- NOTE: (2026-06-29) Vendor them? - graef
+--       (2026-07-02) Nah, to much work - graef
+lfs = require "lfs"
+djot = require "djot"
+etlua = require "etlua"
 
 -- utils
-local utils = {}
+utils = {}
 
 function utils.is_dir(path)
     return path:sub(-1) == "/" or lfs.attributes(path, "mode") == "directory"
@@ -29,25 +37,25 @@ function utils.split(input, seperator)
     if input == nil then
         return {}
     end
-    local t = {}
+    t = {}
     for str in string.gmatch(input, "([^" .. seperator .. "]+)") do
         table.insert(t, str)
     end
     return t
 end
 
--- getting the last object out of the table
-function utils.last_obj(table)
-    if table == nil then
+-- getting the last object out of the table `t`
+function utils.last_obj(t)
+    if t == nil then
         return nil
     end
-    return table[#table]
+    return t[#t]
 end
 
--- getting the size of a table
-function utils.size(table)
-    local count = 0
-    for _ in pairs(table) do
+-- getting the size of a table `t`
+function utils.size(t)
+    count = 0
+    for _ in pairs(t) do
         count = count + 1
     end
     return count
@@ -55,26 +63,26 @@ end
 
 -- misc
 
-local function get_template(file)
-    local f = io.open(file, "r")
-    local template = f:read("*a")
+function get_file(file)
+    f = io.open(file, "r")
+    document = f:read("*a")
     f:close()
-    return etlua.compile(template)
+    return document
 end
 
-local function get_djot(file)
-    local f = io.open(file, "r")
-    local input = f:read("*a")
-    f:close()
-    local doc = djot.parse(input)
-    return djot.render_html(doc)
+function get_template(file)
+    return etlua.compile(get_file(file))
 end
 
-local function get_files(path, exclude)
-    local list = {}
+function get_djot(file)
+    return djot.render_html(djot.parse(get_file(file)))
+end
+
+function get_files(path, exclude)
+    list = {}
     for file in lfs.dir(path) do
         if file ~= "." and file ~= ".." then
-            local filepath = path .. file
+            filepath = path .. file
             -- skip the loop when filepath is where the site is build
             if filepath == exclude then
                 goto continue
@@ -84,52 +92,53 @@ local function get_files(path, exclude)
                     table.insert(list, value)
                 end
             else
-                local extension = utils.get_extension(file)
+                extension = utils.get_extension(file)
                 if extension == "djot" or extension == "etlua" then
                     table.insert(list, filepath)
                 end
             end
+            -- why? ohh.... see goto above
             ::continue::
         end
     end
     return list
 end
 
-local function get_contents(list, basepath)
-    local table = {}
+function get_contents(list, basepath)
+    t = {}
     for _, value in pairs(list) do
-        local extension = utils.get_extension(value)
-        local name = utils.get_filename(value)
-        if table[name] == nil then
-            table[name] = {}
+        extension = utils.get_extension(value)
+        name = utils.get_filename(value)
+        if t[name] == nil then
+            t[name] = {}
         end
         if extension == "djot" then
-            table[name]["content"] = get_djot(value)
+            t[name]["content"] = get_djot(value)
         elseif extension == "etlua" then
-            table[name]["template"] = get_template(value)
+            t[name]["template"] = get_template(value)
         end
     end
     -- creating a table that takes in as the key a directory name
     -- and as its value the etlua template function
-    local dir_template = {}
+    dir_template = {}
     -- first looping throught the first table and filling the table
-    for key, _ in pairs(table) do
+    for key, _ in pairs(t) do
         if key:match("index") then
             -- adding the template to the `dir_template` table
-            if table[key]["template"] ~= nil then
-                dir_template[utils.get_dir(key)] = table[key]["template"]
+            if t[key]["template"] ~= nil then
+                dir_template[utils.get_dir(key)] = t[key]["template"]
             end
         end
     end
     -- second loop throgh table to add the missing etlua template functions
-    for key, _ in pairs(table) do
-        if table[key]["template"] == nil then
-            local str = ""
+    for key, _ in pairs(t) do
+        if t[key]["template"] == nil then
+            str = ""
             -- checking for the template function (also overwriting it when
             -- found on an upper level in the table)
             for _, part in pairs(utils.split(key, "/")) do
                 if dir_template[str] ~= nil then
-                    table[key]["template"] = table[dir_template]["template"]
+                    t[key]["template"] = t[dir_template]["template"]
                     str = str .. "/" .. part
                 end
             end
@@ -141,35 +150,35 @@ local function get_contents(list, basepath)
     -- This makes it easier to create the static site in the 
     -- `create_site` function, as it now just creates the `index.html` file
     -- inside its given folder instead of the `example/blog/index.html` file.
-    local return_table = {}
-    for key, value in pairs(table) do
-        return_table[string.sub(key, string.len(basepath) + 1)] = value
+    ret = {}
+    for key, value in pairs(t) do
+        ret[string.sub(key, string.len(basepath) + 1)] = value
     end
-    return return_table
+    return ret
 end
 
 -- writing a file with the filename and the given value
 -- we expect that "value" is a table with a template function "template"
 -- and a html field "content"
-local function write_file(file, value)
-    local file = io.open(file, "w")
-    local content = value["content"] or ""
-    local html = value.template({
+function write_file(file, value)
+    file = io.open(file, "w")
+    content = value["content"] or ""
+    html = value.template({
         content = content
     })
     file:write(html)
     file:close()
 end
 
-local function create_site(list, dir)
+function create_site(list, dir)
     lfs.mkdir(dir)
     for key, value in pairs(list) do
-        local directory = dir
+        directory = dir
         for _, part in pairs(utils.split(utils.get_dir(key), "/")) do
             directory = directory .. part .. "/"
             lfs.mkdir(directory)
         end
-        local filename = utils.last_obj(utils.split(key, "/"))
+        filename = utils.last_obj(utils.split(key, "/"))
         if filename == "index" then
             write_file(directory .. "index.html", value)
         else
@@ -180,14 +189,15 @@ local function create_site(list, dir)
     end
 end
 
--- TODO: Rewrite that it is not using external commands.
+-- TODO: (2025-04-19) Rewrite that it is not using external commands.
 -- Additionally it can be put into the `moonshine` table
-local function copy_dir(from, to)
-    os.execute("cp " .. from .. " " .. to)
+-- (it would be probably be very smart to use lsf for it)
+function copy_dir(from, to)
+    os.execute("cp -r " .. from .. " " .. to)
 end
 
 -- moonshine
-local moonshine = {}
+moonshine = {}
 
 function moonshine.build(config)
     if config == nil then
@@ -196,25 +206,25 @@ function moonshine.build(config)
     if config.src ~= nil then
         print("moonshine 🥃")
         print("Starting to generate")
-        local start_time = os.time()
-        local files = get_files(config.src, config.dst)
-        local contents = get_contents(files, config.src)
+        start_time = os.clock()
+        files = get_files(config.src, config.dst)
+        contents = get_contents(files, config.src)
         -- getting the amount of pages we build
-        local size = utils.size(contents)
+        size = utils.size(contents)
         create_site(contents, config.dst)
-        local end_time = os.time()
+        end_time = os.clock()
         print("🍨 Finished generating into \"" .. config.dst .. "\"")
-        local elapsed_time = math.floor(os.difftime(end_time, start_time))
-        print("Lua took " .. elapsed_time .. " sec to generate the blog of " .. size .. " file" ..
-                  (size == 1 and "" or "s"))
+        elapsed_time = string.format("%.3f", end_time - start_time)
+        -- "files" is technically not correct, but whatever, it will be fine
+        print("Lua took " .. elapsed_time .. " sec to generate the blog of " .. size .. " files")
     else
         return error("No config source given")
     end
 end
 
 moonshine.build({
-    src = "example/blog/",
-    dst = "example/_site/"
+    src = "./blog/",
+    dst = "./_site/"
 })
 
-return moonshine
+-- return moonshine
