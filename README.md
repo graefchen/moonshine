@@ -1,25 +1,19 @@
-moonshine 🥃
-===========
+# moonshine 🥃
 
-a static site generator written in [Prolog][] using the [Djot][]
-markup languages woth the help of the [djota][] library.
+A (_in development_) static site generator for lua that uses [djot](https://djot.net).
 
-dependencies
-------------
+> [!note]
+> Does not work with luajit (and possible lua version 5.1)
 
-before you can run `moonshine.pl`, you need to download [djota][]
-and put it in the same folder as `moonshine.pl`.
+> [!IMPORTANT]
+> Moonshine is currently more or less still in development and not published
+> on [luarocks](https://luarocks.org).
+> It needs some more time (and me dogfeeding it) to become a fully fledged
+> project that is worth to use.
 
+## Dependencies
 
-  [Prolog]: https://en.wikipedia.org/wiki/Prolog
-  [Djot]: https://djot.net
-  [djota]: https://github.com/aarroyoc/djota
-
-run
----
-
-```elvish
-$ scryer-prolog moonshine.pl
-```
-
+- [djot](https://github.com/jgm/djot.lua) &mdash; a markdown-like markup language
+- [lfs](https://github.com/lunarmodules/luafilesystem) &mdash; a better file system for lua
+- [etlua](https://github.com/leafo/etlua) &mdash; a lua templating engine
 
